@@ -32,6 +32,7 @@ pub trait LenseStruct<'a> {
     type Writer;
     fn from_buf(v: &'a mut [u8]) -> Result<(Self, usize), LenseError>;
     fn writer() -> Self::Writer;
+    unsafe fn writer_uninit() -> Self::Writer;
     fn size() -> usize;
 }
 
@@ -101,6 +102,9 @@ macro_rules! make_lense {
             fn writer() -> Self::Writer {
                 $owned_name::new()
             }
+            unsafe fn writer_uninit() -> Self::Writer {
+                $owned_name::new_uninit()
+            }
             fn size() -> usize {
                 let mut size = 0;
                 $(size += <$struct_item_type>::size();)*
@@ -112,6 +116,11 @@ macro_rules! make_lense {
         impl $owned_name {
             fn new() -> Self {
                 $owned_name(vec![0u8; <$lense_name>::size()])
+            }
+            unsafe fn new_uninit() -> Self {
+                let mut v = Vec::with_capacity(<$lense_name>::size());
+                v.set_len(<$lense_name>::size());
+                $owned_name(v)
             }
             fn borrow_lense<'b>(&'b mut self) -> $lense_name<'b> {
                 $lense_name::from_buf(&mut *self.0).unwrap().0

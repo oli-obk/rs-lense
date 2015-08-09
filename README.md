@@ -99,12 +99,27 @@ Linux livecd 3.18.9-hardened #1 SMP x86_64 Intel(R) Atom(TM) CPU N450 @ 1.66GHz 
 ```
 
 ```
-test alice_x3_reader   ... bench:         120 ns/iter (+/- 2)
-test u64x2_writer      ... bench:         116 ns/iter (+/- 1)
-test u64x31_reader     ... bench:         184 ns/iter (+/- 9)
-test u64x31_writer     ... bench:         199 ns/iter (+/- 2)
-test vec_macro_u64x128 ... bench:         253 ns/iter (+/- 6)
+test alice_writer_init    ... bench:         170 ns/iter (+/- 3) = 88 MB/s
+test alice_writer_uninit  ... bench:         169 ns/iter (+/- 65) = 88 MB/s
+test alice_x3_reader      ... bench:           2 ns/iter (+/- 0) = 22500 MB/s
+test u64x2_reader         ... bench:           1 ns/iter (+/- 0) = 16000 MB/s
+test u64x2_writer_init    ... bench:         123 ns/iter (+/- 35) = 130 MB/s
+test u64x2_writer_uninit  ... bench:         123 ns/iter (+/- 5) = 130 MB/s
+test u64x31_reader        ... bench:          18 ns/iter (+/- 0) = 13777 MB/s
+test u64x31_writer_init   ... bench:         185 ns/iter (+/- 11) = 1340 MB/s
+test u64x31_writer_uninit ... bench:         141 ns/iter (+/- 11) = 1758 MB/s
 ```
-
-**Note:** The last bench exists to demonstrate the cost of `vec![0u8; 8*128]`,
-this method is used inside the writer to allocate the desired size.
+```
+Macbook Pro 2014, i7? (Thanks frankmcsherry)
+```
+```
+test alice_writer_init    ... bench:          29 ns/iter (+/- 14) = 517 MB/s
+test alice_writer_uninit  ... bench:          29 ns/iter (+/- 9) = 517 MB/s
+test alice_x3_reader      ... bench:           1 ns/iter (+/- 1) = 45000 MB/s
+test u64x2_reader         ... bench:           0 ns/iter (+/- 0) = 16000 MB/s
+test u64x2_writer_init    ... bench:          20 ns/iter (+/- 8) = 800 MB/s
+test u64x2_writer_uninit  ... bench:          21 ns/iter (+/- 9) = 761 MB/s
+test u64x31_reader        ... bench:           2 ns/iter (+/- 0) = 124000 MB/s
+test u64x31_writer_init   ... bench:          29 ns/iter (+/- 4) = 8551 MB/s
+test u64x31_writer_uninit ... bench:          26 ns/iter (+/- 6) = 9538 MB/s
+```
