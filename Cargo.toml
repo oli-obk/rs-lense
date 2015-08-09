@@ -1,5 +1,7 @@
 [package]
 name = "lense"
+description = "High performance by-ref, transmute backed reader."
+license = "MIT"
 version = "0.1.0"
 authors = ["James McGlashan <github@darkfox.id.au>"]
 
