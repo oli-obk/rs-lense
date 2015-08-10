@@ -5,6 +5,8 @@ license = "MIT"
 version = "0.1.0"
 authors = ["James McGlashan <github@darkfox.id.au>"]
 
+repository = "https://github.com/james-darkfox/rs-lense"
+
 [profile.bench]
 opt-level = 3
 debug = false

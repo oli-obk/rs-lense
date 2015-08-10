@@ -4,14 +4,14 @@ extern crate test;
 
 use test::Bencher;
 
-use lense::{Lense, LenseStruct, LenseError};
+use lense::*;
 
-make_lense!{Alice, AliceWriter,
+make_lense!{PUB, Alice, AliceWriter,
     a:  u8,
     b: u16,
-    c: u32,
+    c: [(u16); 2],
     d: u64,
-}
+} unsafe_writer!{Alice, AliceWriter}
 
 #[bench]
 fn alice_x3_reader(b: &mut Bencher) {
@@ -54,7 +54,8 @@ fn alice_writer_init(b: &mut Bencher) {
             let mut a_l = a_.borrow_lense();
             *a_l.a = 0;
             *a_l.b = 513;
-            *a_l.c = 100992003;
+            *a_l.c[0] = 123;
+            *a_l.c[1] = 321;
             *a_l.d = 1012478732780767239;
         }
         a_
@@ -70,17 +71,18 @@ fn alice_writer_uninit(b: &mut Bencher) {
             let mut a_l = a_.borrow_lense();
             *a_l.a = 0;
             *a_l.b = 513;
-            *a_l.c = 100992003;
+            *a_l.c[0] = 123;
+            *a_l.c[1] = 321;
             *a_l.d = 1012478732780767239;
         }
         a_
     })
 }
 
-make_lense!{U64x2, U64x2Writer,
+make_lense!{PUB, U64x2, U64x2Writer,
     x0: u64,
     x1: u64,
-}
+} unsafe_writer!{U64x2, U64x2Writer}
 
 #[bench]
 fn u64x2_reader(b: &mut Bencher) {
@@ -131,7 +133,7 @@ fn u64x2_writer_uninit(b: &mut Bencher) {
     })
 }
 
-make_lense!{U64x31, U64x128Writer,
+make_lense!{PUB, U64x31, U64x31Writer,
     x0: u64,
     x1: u64,
     x2: u64,
@@ -163,7 +165,7 @@ make_lense!{U64x31, U64x128Writer,
     x28: u64,
     x29: u64,
     x30: u64,
-}
+} unsafe_writer!{U64x31, U64x31Writer}
 
 #[bench]
 fn u64x31_reader(b: &mut Bencher) {

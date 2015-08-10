@@ -1,10 +1,10 @@
 #[macro_use] extern crate lense;
-use lense::{Lense, LenseStruct, LenseError};
+use lense::*;
 
-make_lense!{Alice, AliceWriter,
+make_lense!{PUB, Alice, AliceWriter,
     a:  u8,
-    b: u16,
-    c: u32,
+    b: (u8, u8),
+    c: [u8; 4],
     d: u64,
 }
 
@@ -27,8 +27,12 @@ fn main() {
     { // construct a new Alice and populate the fields
         let mut a_l = a_.borrow_lense();
         *a_l.a = 0;
-        *a_l.b = 513;
-        *a_l.c = 100992003;
+        *(*a_l.b).0 = 0x01;
+        *(*a_l.b).1 = 0x02;
+        *a_l.c[0] = 0x03;
+        *a_l.c[1] = 0x04;
+        *a_l.c[2] = 0x05;
+        *a_l.c[3] = 0x06;
         *a_l.d = 1012478732780767239;
     }
 
@@ -43,7 +47,7 @@ fn main() {
         match Alice::from_buf(&mut a) {
             Ok((mut a, size)) => {
                 *a.a += pos as u8; pos += size;
-                println!("a: {}; b: {}; c: {}; d: {}", *a.a, *a.b, *a.c, *a.d);
+                println!("a: {}; b: {:?}; c: {:?}; d: {}", *a.a, *a.b, *a.c, *a.d);
             },
             Err(LenseError::NothingToParse) => break, // no more to process :)
             Err(LenseError::UnexpectedSize) => break, // Invalid chunk
