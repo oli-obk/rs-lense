@@ -2,7 +2,7 @@
 name = "lense"
 description = "High performance by-ref, transmute backed reader."
 license = "MIT"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["James McGlashan <github@darkfox.id.au>"]
 
 repository = "https://github.com/james-darkfox/rs-lense"
