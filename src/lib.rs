@@ -36,7 +36,7 @@ pub fn slice_lense_chunk<'a, L: Lense<'a>>(ptr: &mut &'a mut [u8]) -> L {
 // Implement lense for primitive types, tuples and arrays
 
 macro_rules! lense_prim {
-    ($($ty:ty),+$(,)*) => {$(
+    ($($ty:ty)+) => {$(
         impl<'a> Lense<'a> for &'a mut $ty {
             #[inline]
             fn new(ptr: &'a mut [u8]) -> (Self, &'a mut [u8]) {
@@ -57,11 +57,7 @@ macro_rules! lense_prim {
 macro_rules! lense_tuple {
     (@tail $head:ident) => {};
 
-    (@tail $head:ident $($ty:ident)+) => {
-        lense_tuple!{ $($ty)+ }
-    };
-
-    ($($ty:ident)*) => {
+    (@tail $head:ident $($ty:ident)*) => {
         impl<'a, $($ty: Lense<'a>),*> Lense<'a> for ($($ty,)*) {
             fn new(mut ptr: &'a mut [u8]) -> (Self, &mut [u8]) {
                 (($($crate::slice_lense_chunk::<'a, $ty>(&mut ptr),)*), ptr)
@@ -78,6 +74,8 @@ macro_rules! lense_tuple {
 
         lense_tuple!{ @tail $($ty)+ }
     };
+
+    ($($tt:tt)+) => { lense_tuple!{@tail void $($tt)*} };
 }
 
 macro_rules! lense_array {
@@ -87,6 +85,7 @@ macro_rules! lense_array {
 
     (($n:expr) $(($m:expr))*) => {
         impl<'a, L> Lense<'a> for [L; $n] where L: Lense<'a> {
+            #[allow(unused_mut)]
             fn new(mut v: &'a mut [u8]) -> (Self, &mut [u8]) {
                 ([$(lense_array!( @void ($m) $crate::slice_lense_chunk(&mut v) )),*], v)
             }
@@ -100,24 +99,26 @@ macro_rules! lense_array {
         }
 
         lense_array!{ $(($m))* }
-    }
+    };
+
+    ($($tt:tt)*) => { lense_array!{ $(($tt))* } };
 }
 
 lense_prim!{
-    u8,    i8,
-   u16,   i16,
-   u32,   i32,   f32,
-   u64,   i64,   f64,
+    u8  i8
+    u16 i16
+    u32 i32 f32
+    u64 i64 f64
 }
 
 lense_tuple!{A B C D E F G H I J K L M}
  
 lense_array!{
-    (32) (31) (30) (29) (28) (27) (26) (25)
-    (24) (23) (22) (21) (20) (19) (18) (17)
-    (16) (15) (14) (13) (12) (11) (10) ( 9)
-    ( 8) ( 7) ( 6) ( 5) ( 4) ( 3) ( 2) ( 1)
-    ( 0)
+    32 31 30 29 28 27 26 25
+    24 23 22 21 20 19 18 17
+    16 15 14 13 12 11 10  9
+     8  7  6  5  4  3  2  1
+     0
 }
 
 // Implement user defined structs
