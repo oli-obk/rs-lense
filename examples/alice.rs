@@ -1,11 +1,11 @@
 #[macro_use] extern crate lense;
-use lense::{Lense, ContinuousLenseReader};
+use lense::{Lense, LenseIteratable};
 
 // Public struct Alice
-lense_struct!{pub Alice:
+lense_struct!{Alice:
     a:  u8,
     b: (u8, u8),
-    c: [u8; 4],
+    c: [u8; 5],
     d: u64,
 }
 
@@ -20,16 +20,16 @@ fn main() {
     // Buffer containing 3x Alice
     let mut alice = vec![0x00, // a[0].a
                          0x01, 0x02, // a[0].b
-                         0x03, 0x04, 0x05, 0x06, // a[0].c
-                         0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, // a[0].d
+                         0x03, 0x04, 0x05, 0x06, 0x07, // a[0].c
+                         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, // a[0].d
                          0x00, // ...
                          0x01, 0x02,
-                         0x03, 0x04, 0x05, 0x06,
-                         0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+                         0x03, 0x04, 0x05, 0x06, 0x07,
+                         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
                          0x00,
                          0x01, 0x02,
-                         0x03, 0x04, 0x05, 0x06,
-                         0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+                         0x03, 0x04, 0x05, 0x06, 0x07,
+                         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
                          ];
 
     // New vector of Alice::size() ready to be used.
@@ -44,17 +44,19 @@ fn main() {
         *alice_writer_lense.c[1] = 0x04;
         *alice_writer_lense.c[2] = 0x05;
         *alice_writer_lense.c[3] = 0x06;
-        *alice_writer_lense.d = 1012478732780767239;
+        *alice_writer_lense.c[4] = 0x07;
+        *alice_writer_lense.d = 1084818905618843912;
     }
 
     // Check that our manually populated Alice is identical to the first Alice in the vector 'a'
     assert!(&*alice_writer == &alice[0..Alice::size()]);
 
     { // Read each Alice from 'a'
-        let mut remaining = &mut *alice;
-        while let Ok(Some(mut a)) = Alice::from_buf(&mut remaining) {
+        let it = Alice::from_buf(&mut *alice);
+        println!("Found Alice {} times", it.len());
+        for a in it {
             *a.a += 1;
-            println!("a: {}; b: {:?}; c: {:?}; d: {}", *a.a, a.b, a.c, *a.d);
+            println!("a: {:?}; b: {:?}; c: {:?}; d: {:?}", a.a, a.b, a.c, a.d);
         }
         // If there is any excess, it is still accessible through the 'remaining' variable.
         // Alternatively this can be used as a starting point in a pool that owns some
