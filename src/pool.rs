@@ -1,5 +1,5 @@
 
-use Lense;
+use {Lense, Dice};
 
 pub struct AlignedPool<'a, L> where L: 'a + Lense<'a> {
     buf: Vec<u64>,
@@ -7,8 +7,15 @@ pub struct AlignedPool<'a, L> where L: 'a + Lense<'a> {
 }
 
 impl<'a, L> AlignedPool<'a, L> where L: Lense<'a> {
+    pub fn from_buf(buf: &'a [u64]) -> Self {
+        AlignedPool {
+            buf: Vec::from(buf),
+            _ty: ::std::marker::PhantomData,
+        }
+    }
+
     pub fn with_capacity(mut size: usize) -> Self {
-        size = size.next_power_of_two();
+        size = size.next_power_of_two(); // Or multiple of 8?
         AlignedPool {
             buf: vec![0u64; (L::size() * size) / 8],
             _ty: ::std::marker::PhantomData,

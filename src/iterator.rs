@@ -1,43 +1,66 @@
-use {Lense, slice_lense_chunk};
 
-pub struct LenseIterator<'a, L: 'a + Lense<'a>> {
-    buf: &'a mut [u8],
-    _lense: ::std::marker::PhantomData<&'a L>,
+use {LenseRef, LenseMut, Dice, DiceMut};
+
+pub struct Iter<'a, B: Dice<'a>, L: 'a + LenseRef<'a>> {
+    buf: B,
+    _ty: ::std::marker::PhantomData<&'a L>,
 }
 
-#[cfg(feature = "remaining")]
-impl<'a, L> LenseIterator<'a, L> where L: Lense<'a> {
-    fn remaining(self) -> Option<&'a mut [u8]> {
-        if self.buf.len() == 0 {
-            None
-        } else {
-            Some(self.buf)
-        }
-    }
-}    
-
-pub trait LenseIteratable<'a>: Lense<'a> + Sized {
-    fn from_buf(mut buf: &'a mut [u8]) -> LenseIterator<'a, Self> {
-        LenseIterator {
+impl<'a, B, L> Iter<'a, B, L> where L: LenseRef<'a>, B: Dice<'a> {
+    pub fn new(buf: B) -> Self {
+        Iter {
             buf: buf,
-            _lense: ::std::marker::PhantomData,
+            _ty: ::std::marker::PhantomData,
         }
     }
 }
 
-impl<'a, L> Iterator for LenseIterator<'a, L> where L: Lense<'a> {
-    type Item = L;
+impl<'a, B, L> Iterator for Iter<'a, B, L> where L: LenseRef<'a>, B: Dice<'a> {
+    type Item = L::Ref;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.buf.len() {
             0 => None,
             x if x < L::size() => None,
-            _ => Some(slice_lense_chunk(&mut self.buf)),
+            _ => Some(L::slice(&mut self.buf)),
         }
     }
 }
 
-impl<'a, L> ExactSizeIterator for LenseIterator<'a, L> where L: Lense<'a> {
+impl<'a, B, L> ExactSizeIterator for Iter<'a, B, L> where L: LenseRef<'a>, B: Dice<'a> {
+    fn len(&self) -> usize {
+        self.buf.len() / L::size()
+    }
+}
+
+
+pub struct IterMut<'a, B: DiceMut<'a>, L: 'a + LenseMut<'a>> {
+    buf: B,
+    _ty: ::std::marker::PhantomData<&'a L>,
+}
+
+impl<'a, B, L> IterMut<'a, B, L> where L: LenseMut<'a>, B: DiceMut<'a> {
+    pub fn new(buf: B) -> Self {
+        IterMut {
+            buf: buf,
+            _ty: ::std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, B, L> Iterator for IterMut<'a, B, L> where L: LenseMut<'a>, B: DiceMut<'a> {
+    type Item = L::Mut;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.buf.len() {
+            0 => None,
+            x if x < L::size() => None,
+            _ => Some(L::slice_mut(&mut self.buf)),
+        }
+    }
+}
+
+impl<'a, B, L> ExactSizeIterator for IterMut<'a, B, L> where L: LenseMut<'a>, B: DiceMut<'a> {
     fn len(&self) -> usize {
         self.buf.len() / L::size()
     }

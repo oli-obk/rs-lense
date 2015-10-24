@@ -1,150 +1,146 @@
 
-use {Lense, IntoLense};
+#[macro_export]
+macro_rules! mk_lense_ty {
+    (@void $void:tt $expr:expr) => { $expr };
 
-macro_rules! lense_prim {
-    ($($ty:ty)+) => {$(
-        impl<'a> Lense<'a> for &'a mut $ty {
-            #[inline]
-            fn new(ptr: &'a mut [u8]) -> (Self, &'a mut [u8]) {
-                let (v, rest) = ptr.split_at_mut(Self::size());
-                (unsafe { &mut *(v.as_ptr() as *mut $ty) }, rest)
-            }
+    (tuple $($ty:ident)*) =>
+        { mk_lense_ty!{() tuple $($ty)* } };
+    (array $($n:tt)*) =>
+        { mk_lense_ty!{[] $(($n))*} };
+    (pub struct $ident:ident $ref_mut:tt $($field:ident: $ty:ty),* $(,)*) =>
+        { mk_lense_ty!{{} public $ident $ref_mut $($field: $ty),* } };
+    (struct $ident:ident $ref_mut:tt $($field:ident: $ty:ty),* $(,)*) =>
+        { mk_lense_ty!{{} private $ident $ref_mut $($field: $ty),* } };
 
+    (prim $($ty:ty)+) => {$(
+        impl<'a> $crate::Lense<'a> for $ty {
             #[inline]
             fn size() -> usize { ::std::mem::size_of::<$ty>() }
         }
 
-        impl<'a> IntoLense<'a> for $ty {
-            type Lense = &'a mut $ty;
+        impl<'a> $crate::LenseRef<'a> for $ty {
+            type Ref = &'a $ty;
+            fn slice<L: $crate::Dice<'a>>(buf: &mut L) -> Self::Ref {
+                buf.slice::<Self>()
+            }
+        }
+
+        impl<'a> $crate::LenseMut<'a> for $ty {
+            type Mut = &'a mut $ty;
+            fn slice_mut<L: $crate::DiceMut<'a>>(buf: &mut L) -> Self::Mut {
+                buf.slice_mut::<Self>()
+            }
         }
     )+};
-}
 
-macro_rules! lense_tuple {
-    (@tail $head:ident) => {};
-
-    (@tail $head:ident $($ty:ident)*) => {
-        impl<'a, $($ty: Lense<'a>),*> Lense<'a> for ($($ty,)*) {
-            fn new(mut ptr: &'a mut [u8]) -> (Self, &mut [u8]) {
-                (($($crate::slice_lense_chunk::<'a, $ty>(&mut ptr),)*), ptr)
-            }
-
+    (()) => { };
+    (() $head:ident $($ty:ident)*) => {
+        impl<'a, $($ty: 'a + $crate::Lense<'a>),*> $crate::Lense<'a> for ($($ty,)*) {
             fn size() -> usize {
-                0 $(+ $ty::size())*
+                0usize $(+ $ty::size())*
             }
         }
 
-        impl<'a, $($ty: IntoLense<'a>),*> IntoLense<'a> for ($($ty,)*) {
-            type Lense = ($(<$ty as IntoLense<'a>>::Lense,)*);
+        impl<'a, $($ty: 'a + $crate::LenseRef<'a>),*> $crate::LenseRef<'a> for ($($ty,)*) {
+            type Ref = ($($ty::Ref,)*);
+            #[allow(unused_variables)]
+            fn slice<BB: $crate::Dice<'a>>(buf: &mut BB) -> Self::Ref {
+                ($( <$ty>::slice(buf), )*)
+            }
         }
 
-        lense_tuple!{ @tail $($ty)+ }
+        impl<'a, $($ty: 'a + $crate::LenseMut<'a>),*> $crate::LenseMut<'a> for ($($ty,)*) {
+            type Mut = ($($ty::Mut,)*);
+            #[allow(unused_variables)]
+            fn slice_mut<BB: $crate::DiceMut<'a>>(buf: &mut BB) -> Self::Mut {
+                ($( <$ty>::slice_mut(buf), )*)
+            }
+        }
+        mk_lense_ty!{() $($ty)*}
     };
 
-    ($($tt:tt)+) => { lense_tuple!{@tail void $($tt)*} };
-}
-
-macro_rules! lense_array {
-    (@void ($x:expr) $expr:expr) => ($expr);
-
-    () => ();
-
-    (($n:expr) $(($m:expr))*) => {
-        impl<'a, L> Lense<'a> for [L; $n] where L: Lense<'a> {
-            #[allow(unused_mut)]
-            fn new(mut v: &'a mut [u8]) -> (Self, &mut [u8]) {
-                ([$(lense_array!( @void ($m) $crate::slice_lense_chunk(&mut v) )),*], v)
-            }
+    ([]) => { };
+    ([] ($n:expr) $(($m:expr))*) => {
+        impl<'a, L: 'a + $crate::Lense<'a>> $crate::Lense<'a> for [L; $n] {
             fn size() -> usize {
                 $n * L::size()
             }
         }
 
-        impl<'a, L: IntoLense<'a>> IntoLense<'a> for [L; $n] {
-            type Lense = [<L as IntoLense<'a>>::Lense; $n];
+        impl<'a, L: 'a + $crate::LenseRef<'a>> $crate::LenseRef<'a> for [L; $n] {
+            type Ref = [L::Ref; $n];
+
+            #[allow(unused_variables)]
+            fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
+                [$(mk_lense_ty!{ @void ($m) L::slice(buf) }),*]
+            }
         }
 
-        lense_array!{ $(($m))* }
+        impl<'a, L: 'a + $crate::LenseMut<'a>> $crate::LenseMut<'a> for [L; $n] {
+            type Mut = [L::Mut; $n];
+
+            #[allow(unused_variables)]
+            fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
+                [$(mk_lense_ty!{ @void ($m) L::slice_mut(buf) }),*]
+            }
+        }
+        mk_lense_ty!{[] $(($m))*}
     };
 
-    ($($tt:tt)*) => { lense_array!{ $(($tt))* } };
+    ({} @struct public ref $ident:ident $($field:ident: $ty:ty),*) =>
+        { #[allow(dead_code)] pub struct $ident<'a> { $($field: <$ty as $crate::LenseRef<'a>>::Ref),* } };
+    ({} @struct public mut $ident:ident $($field:ident: $ty:ty),*) =>
+        { #[allow(dead_code)] pub struct $ident<'a> { $($field: <$ty as $crate::LenseMut<'a>>::Mut),* } };
+    ({} @struct private ref $ident:ident $($field:ident: $ty:ty),*) =>
+        { #[allow(dead_code)] struct $ident<'a> { $($field: <$ty as $crate::LenseRef<'a>>::Ref),* } };
+    ({} @struct private mut $ident:ident $($field:ident: $ty:ty),*) =>
+        { #[allow(dead_code)] struct $ident<'a> { $($field: <$ty as $crate::LenseMut<'a>>::Mut),* } };
+    ({} @impl $ident:ident size $($field:ident: $ty:ty),*) => {
+        impl<'a> $crate::Lense<'a> for $ident<'a> {
+            fn size() -> usize {
+                0usize $(+ <$ty as $crate::Lense<'a>>::size())*
+            }
+        }
+    };
+    ({} @impl $ident:ident ref $($field:ident: $ty:ty),*) => {
+        impl<'a> $crate::LenseRef<'a> for $ident<'a> {
+            type Ref = $ident<'a>;
+
+            fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
+                $ident { $($field: <$ty>::slice(buf)),* }
+            }
+        }
+    };
+    ({} @impl $ident:ident mut $($field:ident: $ty:ty),*) => {
+        impl<'a> $crate::LenseMut<'a> for $ident<'a> {
+            type Mut = $ident<'a>;
+
+            fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
+                $ident { $($field: <$ty>::slice_mut(buf)),* }
+            }
+        }
+    };
+    ({} $vis:ident $ident:ident $ref_mut:tt $($field:ident: $ty:ty),*) => {
+        mk_lense_ty!{{} @struct $vis $ref_mut $ident $($field: $ty),*}
+        mk_lense_ty!{{} @impl $ident size $($field: $ty),*}
+        mk_lense_ty!{{} @impl $ident $ref_mut $($field: $ty),*}
+    };
 }
 
-lense_prim!{
+mk_lense_ty!{prim
     u8  i8
     u16 i16
     u32 i32 f32
     u64 i64 f64
 }
-
-lense_tuple!{A B C D E F G H I J K L M}
-
-lense_array!{
+mk_lense_ty!{tuple
+    A B C D E F
+    G H I J K L
+}
+mk_lense_ty!{array
     32 31 30 29 28 27 26 25
     24 23 22 21 20 19 18 17
     16 15 14 13 12 11 10  9
      8  7  6  5  4  3  2  1
      0
-}
-
-#[macro_export]
-macro_rules! lense_struct {
-    (@struct public $lense:ident: $($name:ident: $ty:ty),*) => {
-        pub struct $lense<'a> {
-            $($name: <$ty as $crate::IntoLense<'a>>::Lense),*
-        }
-    };
-
-    (@struct private $lense:ident: $($name:ident: $ty:ty),*) => {
-        struct $lense<'a> {
-            $($name: <$ty as $crate::IntoLense<'a>>::Lense),*
-        }
-    };
-
-    (@impl $vis:ident $lense:ident: $($name:ident: $ty:ty),*) => {
-        lense_struct!{@struct $vis $lense: $($name: $ty),*}
-
-        #[allow(non_snake_case)]
-        #[cfg(test)]
-        mod $lense { // Hacky. See rust-lang/rust#29182,#29185
-            #[test]
-            fn lense_alignment() {
-                let mut x = 0;
-                let mut m = 0;
-                $(
-                    $crate::test_lense_struct_alignment(&mut x, &mut m,
-                        ::std::mem::align_of::<$ty>(),
-                        ::std::mem::size_of::<$ty>(),
-                        stringify!($name));
-                )*
-                assert!(x % m == 0, "This lense cannot be repeating");
-            }
-        }
-
-        impl<'a> $crate::Lense<'a> for $lense<'a> {
-            fn new(mut v: &'a mut [u8]) -> (Self, &mut [u8]) {
-                ($lense {
-                    $($name: $crate::slice_lense_chunk(&mut v)),*
-                }, v)
-            }
-
-            fn size() -> usize {
-                0 $(+ <$ty as $crate::IntoLense<'a>>::Lense::size())*
-            }
-        }
-
-        impl<'a> $crate::IntoLense<'a> for $lense<'a> {
-            type Lense = $lense<'a>;
-        }
-
-        impl<'a> $crate::LenseIteratable<'a> for $lense<'a> { }
-    };
-
-    (pub $lense:ident: $($name:ident: $ty:ty),* $(,)*) => {
-        lense_struct!{@impl public $lense: $($name: $ty),*}
-    };
-
-    ($lense:ident: $($name:ident: $ty:ty),* $(,)*) => {
-        lense_struct!{@impl private $lense: $($name: $ty),*}
-    };
 }

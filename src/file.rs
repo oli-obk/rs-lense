@@ -1,10 +1,10 @@
+#![cfg(test)]
 
 use std::fs::File;
 use std::io::{self, Read}; //, Seek, SeekFrom};
 //use std::collections::HashMap;
 
-use {Lense, LenseIterator, LenseIteratable};
-use pool::AlignedPool;
+use {AlignedPool, Lense};
 
 enum PoolPolicy {
     Strict, // Do not allocate more memory when the pool runs out of storage.
@@ -46,8 +46,8 @@ impl<'a, L> LenseFile<'a, L> where L: Lense<'a> {
         }
     }
 
-    pub fn iter(&'a mut self) -> LenseIterator<'a, L> where L: LenseIteratable<'a> {
-        L::from_buf(&mut *self.pool)
+    pub fn pool(&mut self) -> &AlignedPool<'a, L> {
+        &self.pool
     }
 
 //  Lock when leasing lenses.
@@ -88,21 +88,22 @@ mod test{
     use std::fs::File;
     use super::*;
 
-    lense_struct!{Alice:
+    mk_lense_ty!{struct Alice ref
         a:  u8,
-        b: (u8, u8),
-        c: [u8; 5],
+        b: (u8, u16),
+        c: [u8; 4],
         d: u64,
     }
 
     #[test]
+//  #[ignore]
     fn read_lense_file() {
         let mut f = LenseFile::<Alice>::from_file(File::open("lense-testing-file.dat").unwrap(), 2);
 
         println!("Reading... {}", f.init().unwrap());
 
-        for e in f.iter() {
-            println!("{:?} {:?} {:?} {:?}", e.a, e.b, e.c, e.d);
+        for n in f.pool().iter() {
+            println!("{}", *n);
         }
 
         if option_env!("lense_debug").is_some() {
