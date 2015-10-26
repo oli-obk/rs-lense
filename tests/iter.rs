@@ -4,11 +4,9 @@ use lense::*;
 
 #[test]
 fn prim_immutable_iter() {
-    let pool = AlignedPool::<u16>::with_capacity(3);
+    let ref mut pool = AlignedPool::<u16>::with_capacity(4);
     {
-        let ref mut buf = &*pool;
-        let l = LenseRaw::from_buf(buf);
-        let it: Iter<_, u16> = Iter::new(l);
+        let it: Iter<u16> = Iter::new(pool);
         for n in it {
             assert_eq!(*n, 0u16);
         }
@@ -17,11 +15,9 @@ fn prim_immutable_iter() {
 
 #[test]
 fn prim_mutable_iter() {
-    let mut pool = AlignedPool::<u16>::with_capacity(3);
+    let ref mut pool = AlignedPool::<u16>::with_capacity(4);
     {
-        let ref mut buf = &mut *pool;
-        let l = LenseRaw::from_buf(buf);
-        let it: IterMut<_, u16> = IterMut::new(l);
+        let it: IterMut<u16> = IterMut::new(pool);
         for mut n in it {
             *n = 12345;
         }

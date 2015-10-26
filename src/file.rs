@@ -46,8 +46,8 @@ impl<'a, L> LenseFile<'a, L> where L: Lense<'a> {
         }
     }
 
-    pub fn pool(&mut self) -> &AlignedPool<'a, L> {
-        &self.pool
+    pub fn pool(&mut self) -> &mut AlignedPool<'a, L> {
+        &mut self.pool
     }
 
 //  Lock when leasing lenses.
@@ -102,8 +102,8 @@ mod test{
 
         println!("Reading... {}", f.init().unwrap());
 
-        for n in f.pool().iter() {
-            println!("{}", *n);
+        for Alice { a, b, c, d } in f.pool().iter() {
+            println!("{:?} {:?} {:?} {:?}", a, b, c, d);
         }
 
         if option_env!("lense_debug").is_some() {

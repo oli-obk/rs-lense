@@ -1,4 +1,3 @@
-
 #[macro_export]
 macro_rules! mk_lense_ty {
     (@void $void:tt $expr:expr) => { $expr };
@@ -143,4 +142,72 @@ mk_lense_ty!{array
     16 15 14 13 12 11 10  9
      8  7  6  5  4  3  2  1
      0
+}
+
+#[macro_export]
+macro_rules! count_tuple {
+    (@void $void:tt $expr:expr) => { $expr };
+    (@count $($elem:tt)*) => { 0u8 $(+ count_tuple!{@void $elem 1})* };
+    (($($tt:expr),*) $void:tt $($tail:tt)*) => {
+        count_tuple!{(count_tuple!{@count $($tail)*} $(, $tt)*) $($tail)*}
+    };
+    ($expr:expr) => { $expr };
+}
+
+// Experimental - does not perform any padding
+
+#[macro_export]
+macro_rules! mk_lense_enum {
+    (@enum $ident:ident ref $( $variant:ident($($ty:ty),*) ),*) =>
+        { enum $ident<'a> { $( $variant($(<$ty as $crate::LenseRef<'a>>::Ref),*) ),*, Invalid } };
+    (@enum $ident:ident mut $( $variant:ident($($ty:ty),*) ),*) =>
+        { enum $ident<'a> { $( $variant($(<$ty as $crate::LenseRef<'a>>::Mut),*) ),*, Invalid } };
+    (@impl $ident:ident size $($variant:ident($($ty:ty),*) ),*) => {
+        impl<'a> $crate::Lense<'a> for $ident<'a> {
+            fn size() -> usize {
+                *[$( <($($ty),*) as $crate::Lense<'a>>::size() ),*].iter().max().unwrap()
+            }
+        }
+    };
+    (@impl $ident:ident ref $($variant:ident($($ty:ty),*) ),*) => {
+        impl<'a> $crate::LenseRef<'a> for $ident<'a> {
+            type Ref = $ident<'a>;
+
+            #[allow(non_snake_case)]
+            fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
+                let tag = <u8>::slice(buf);
+                let ($($variant,)*) = count_tuple!(() $( $variant )*);
+                match tag {
+                    $(x if *x == $variant => $ident::$variant(<$($ty),*>::slice(buf)),)*
+                    _ => $ident::Invalid,
+                }
+            }
+        }
+    };
+    (@impl $ident:ident mut $($variant:ident($($ty:ty),*) ),*) => {
+        impl<'a> $crate::LenseMut<'a> for $ident<'a> {
+            type Mut = $ident<'a>;
+
+            #[allow(non_snake_case)]
+            fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
+                let tag = <u8>::slice(buf);
+                let ($($variant,)*) = count_tuple!(() $( $variant )*);
+                match tag {
+                    $(x if *x == $variant => $ident::$variant(<$($ty),*>::slice_mut(buf)),)*
+                    _ => $ident::Invalid,
+                }
+            }
+        }
+    };
+    (enum $ident:ident $ref_mut:tt $( $variant:ident($($ty:ty),*) ),*) => {
+        mk_lense_enum!{ @enum $ident $ref_mut $( $variant($($ty),*) ),* }
+        mk_lense_enum!{ @impl $ident size $( $variant($($ty),*) ),* }
+        mk_lense_enum!{ @impl $ident $ref_mut $( $variant($($ty),*) ),* }
+    };
+}
+
+mk_lense_enum!{enum Foo ref
+    U8(u8),   // 1
+    U16(u16), // 0
+    U32(u32)
 }
