@@ -16,9 +16,8 @@ fn div_up(n: usize, m: usize) -> usize {
 
 impl<'a, L> AlignedPool<'a, L> where L: Lense<'a> {
     pub fn with_capacity(mut cap: usize) -> Self {
-//      debug_assert!(cap * L::size() % 8 > 0 && cap * L::size() % 8 + L::size() < 8,
-//                    "Bug in AlignedPool::with_capacity() capacity cannot round \
-//                    up more than Lense::size()");
+        debug_assert!(cap * L::size() % 8 == 0,
+                      "Implementation limitation: expected capacity of {}, implementation", cap);
         cap *= L::size();
         AlignedPool {
             buf: vec![0u64; div_up(cap, 8)],
@@ -28,11 +27,11 @@ impl<'a, L> AlignedPool<'a, L> where L: Lense<'a> {
     }
 
     pub fn iter(&'a mut self) -> Iter<'a, L> where L: LenseRef<'a> {
-        Iter::new(self)
+        Iter::from_aligned_pool(self)
     }
 
     pub fn iter_mut(&'a mut self) -> IterMut<'a, L> where L: LenseMut<'a> {
-        IterMut::new(self)
+        IterMut::from_aligned_pool(self)
     }
 }
 

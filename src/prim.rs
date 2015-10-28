@@ -2,14 +2,14 @@
 macro_rules! mk_lense_ty {
     (@void $void:tt $expr:expr) => { $expr };
 
-    (tuple $($ty:ident)*) =>
-        { mk_lense_ty!{() tuple $($ty)* } };
-    (array $($n:tt)*) =>
-        { mk_lense_ty!{[] $(($n))*} };
-    (pub struct $ident:ident $ref_mut:tt $($field:ident: $ty:ty),* $(,)*) =>
-        { mk_lense_ty!{{} public $ident $ref_mut $($field: $ty),* } };
-    (struct $ident:ident $ref_mut:tt $($field:ident: $ty:ty),* $(,)*) =>
-        { mk_lense_ty!{{} private $ident $ref_mut $($field: $ty),* } };
+    (tuple $($ty:ident)*)
+        => { mk_lense_ty!{() tuple $($ty)* } };
+    (array $($n:tt)*)
+        => { mk_lense_ty!{[] $(($n))*} };
+    (pub struct $ident:ident $ref_mut:tt $($field:ident: $ty:ty),* $(,)*)
+        => { mk_lense_ty!{{} public $ident $ref_mut $($field: $ty),* } };
+    (struct $ident:ident $ref_mut:tt $($field:ident: $ty:ty),* $(,)*)
+        => { mk_lense_ty!{{} private $ident $ref_mut $($field: $ty),* } };
 
     (prim $($ty:ty)+) => {$(
         impl<'a> $crate::Lense<'a> for $ty {
@@ -86,14 +86,14 @@ macro_rules! mk_lense_ty {
         mk_lense_ty!{[] $(($m))*}
     };
 
-    ({} @struct public ref $ident:ident $($field:ident: $ty:ty),*) =>
-        { #[allow(dead_code)] pub struct $ident<'a> { $($field: <$ty as $crate::LenseRef<'a>>::Ref),* } };
-    ({} @struct public mut $ident:ident $($field:ident: $ty:ty),*) =>
-        { #[allow(dead_code)] pub struct $ident<'a> { $($field: <$ty as $crate::LenseMut<'a>>::Mut),* } };
-    ({} @struct private ref $ident:ident $($field:ident: $ty:ty),*) =>
-        { #[allow(dead_code)] struct $ident<'a> { $($field: <$ty as $crate::LenseRef<'a>>::Ref),* } };
-    ({} @struct private mut $ident:ident $($field:ident: $ty:ty),*) =>
-        { #[allow(dead_code)] struct $ident<'a> { $($field: <$ty as $crate::LenseMut<'a>>::Mut),* } };
+    ({} @struct public ref $ident:ident $($field:ident: $ty:ty),*)
+        => { #[allow(dead_code)] pub struct $ident<'a> { $($field: <$ty as $crate::LenseRef<'a>>::Ref),* } };
+    ({} @struct public mut $ident:ident $($field:ident: $ty:ty),*)
+        => { #[allow(dead_code)] pub struct $ident<'a> { $($field: <$ty as $crate::LenseMut<'a>>::Mut),* } };
+    ({} @struct private ref $ident:ident $($field:ident: $ty:ty),*)
+        => { #[allow(dead_code)] struct $ident<'a> { $($field: <$ty as $crate::LenseRef<'a>>::Ref),* } };
+    ({} @struct private mut $ident:ident $($field:ident: $ty:ty),*)
+        => { #[allow(dead_code)] struct $ident<'a> { $($field: <$ty as $crate::LenseMut<'a>>::Mut),* } };
     ({} @impl $ident:ident size $($field:ident: $ty:ty),*) => {
         impl<'a> $crate::Lense<'a> for $ident<'a> {
             fn size() -> usize {
@@ -119,10 +119,10 @@ macro_rules! mk_lense_ty {
             }
         }
     };
-    ({} $vis:ident $ident:ident $ref_mut:tt $($field:ident: $ty:ty),*) => {
-        mk_lense_ty!{{} @struct $vis $ref_mut $ident $($field: $ty),*}
-        mk_lense_ty!{{} @impl $ident size $($field: $ty),*}
-        mk_lense_ty!{{} @impl $ident $ref_mut $($field: $ty),*}
+    ({} $vis:ident $ident:ident $ref_mut:tt $($tt:tt)*) => {
+        mk_lense_ty!{{} @struct $vis $ref_mut $ident $($tt)*}
+        mk_lense_ty!{{} @impl $ident size $($tt)*}
+        mk_lense_ty!{{} @impl $ident $ref_mut $($tt)*}
     };
 }
 
@@ -147,7 +147,7 @@ mk_lense_ty!{array
 #[macro_export]
 macro_rules! count_tuple {
     (@void $void:tt $expr:expr) => { $expr };
-    (@count $($elem:tt)*) => { 0u8 $(+ count_tuple!{@void $elem 1})* };
+    (@count $($elem:tt)*) => { 0u8 $(+ count_tuple!{@void $elem 1u8})* };
     (($($tt:expr),*) $void:tt $($tail:tt)*) => {
         count_tuple!{(count_tuple!{@count $($tail)*} $(, $tt)*) $($tail)*}
     };
@@ -158,10 +158,10 @@ macro_rules! count_tuple {
 
 #[macro_export]
 macro_rules! mk_lense_enum {
-    (@enum $ident:ident ref $( $variant:ident($($ty:ty),*) ),*) =>
-        { enum $ident<'a> { $( $variant($(<$ty as $crate::LenseRef<'a>>::Ref),*) ),*, Invalid } };
-    (@enum $ident:ident mut $( $variant:ident($($ty:ty),*) ),*) =>
-        { enum $ident<'a> { $( $variant($(<$ty as $crate::LenseRef<'a>>::Mut),*) ),*, Invalid } };
+    (@enum $ident:ident ref $( $variant:ident($($ty:ty),*) ),*)
+        => { enum $ident<'a> { $( $variant($(<$ty as $crate::LenseRef<'a>>::Ref),*) ),*, InvalidLense } };
+    (@enum $ident:ident mut $( $variant:ident($($ty:ty),*) ),*)
+        => { enum $ident<'a> { $( $variant($(<$ty as $crate::LenseRef<'a>>::Mut),*) ),*, InvalidLense } };
     (@impl $ident:ident size $($variant:ident($($ty:ty),*) ),*) => {
         impl<'a> $crate::Lense<'a> for $ident<'a> {
             fn size() -> usize {
@@ -179,7 +179,7 @@ macro_rules! mk_lense_enum {
                 let ($($variant,)*) = count_tuple!(() $( $variant )*);
                 match tag {
                     $(x if *x == $variant => $ident::$variant(<$($ty),*>::slice(buf)),)*
-                    _ => $ident::Invalid,
+                    _ => $ident::InvalidLense,
                 }
             }
         }
@@ -194,7 +194,7 @@ macro_rules! mk_lense_enum {
                 let ($($variant,)*) = count_tuple!(() $( $variant )*);
                 match tag {
                     $(x if *x == $variant => $ident::$variant(<$($ty),*>::slice_mut(buf)),)*
-                    _ => $ident::Invalid,
+                    _ => $ident::InvalidLense,
                 }
             }
         }
@@ -206,8 +206,9 @@ macro_rules! mk_lense_enum {
     };
 }
 
+#[cfg(test)]
 mk_lense_enum!{enum Foo ref
-    U8(u8),   // 1
-    U16(u16), // 0
+    U8(u8),
+    U16(u16),
     U32(u32)
 }

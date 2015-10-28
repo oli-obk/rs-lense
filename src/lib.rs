@@ -2,8 +2,10 @@
 mod iterator;
 mod pool;
 mod file;
+mod aligned;
 
 pub use iterator::{Iter, IterMut};
+pub use aligned::Aligned;
 pub use pool::AlignedPool;
 
 pub trait Lense<'a> {
