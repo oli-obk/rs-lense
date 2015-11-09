@@ -20,6 +20,13 @@ there is no performance hit or slow step to serialising and deserialising data.
 - No allocations
 - No copies
 - No reference counters
+- Minimal unsafety
+
+## Optional features
+
+- Aligned iterators
+- Pre-allocated pools
+- File backed ACID state database
 
 ## Possible usecases
 
@@ -31,30 +38,54 @@ there is no performance hit or slow step to serialising and deserialising data.
 - Endianness isn't touched in the lense, you must handle this if you're doing
   networking or otherwise sharing accross platforms.
 
-- Padding and alignment currently isn't automated and is a manual task. The
-  order the fields are written in the `make_lense!()` macro is the order in
-  which they are stored. Add `_padding_n` fields of the respective types.
-
-- Versioning of protocols using lense should be handled by supporting multiple
-  versions at once and determining the newest version on both endpoints. Lense
-  does not handle any versioning (yet?). Semver is recommended.
-
 Room for improvement
 --------------------
 
-However already a powerful mutable by-ref reader, there are limitations with
-working with only macros. Notably, a syntax extension can be used to automate
-and lint the alignment of all struct fields and types.
-
-- [ ] Replace the continuous reader with an Iterator
 - [ ] Variable length types (**must be known at writer time!**)
-- [ ] Syntax extension
-  - [ ] Automate ordering (`C` style)
-  - [ ] Lint manually ordered fields
-  - [ ] `#[derive(..)]` attribute
+  - [ ] Union types
+  - [ ] Vectors
+    - [ ] Allocating should reserve a partition of the pool
+    - [ ] Custom `Reader` and `Writer` to correctly handle I/O
+  - [ ] HashMaps `Vec<(Key, Value>)::collect()`
+- [ ] Automate padding to correct alignments
+  - [x] Alignment type
+  - [x] Aligned iterators
+  - [ ] Calculate padding waste
+  - [ ] Lint to complain when ordering is suboptimal
+- Safety checks
+  - [x] Iterators perform length checks before slicing the buffer
+    - [ ] Automatic padding occurs at runtime and skips this check
+
+Lense safe types
+----------------
+
+A type is lense-safe if it is `Sized` and does not contain any pointers.
+Consequently primitive types and compositive types are lense-safe while `Vec`
+and `HashMap` are not.
+
+Traits
+------
+
+**Dice**: Chop the current slice into two segments, advance the slice and
+return the lense.
+
+**Slice**: Wrapper around `Dice` for primitive and compositive types.
+
+Safety policy
+-------------
+
+The **only** unsafe code in `lense` is defined in the `Dice` trait in order to
+cast the raw pointers, to the appropriate lense-safe types.
+
+The **ONLY** unsafe code is defined in the `Dice` trait and for performance
+reasons neither `Dice` nor `Slice` perform length checks on the buffer.
+Instead, length checks occur in `Iter` and `IterMut` which inherently also
+applies to the `LenseFile` struct.
 
 Usage
 -----
+
+**This section needs to be re-written due to updates**
 
 The following example is `examples/alice.rs` and can be ran with `cargo run --example alice`
 
