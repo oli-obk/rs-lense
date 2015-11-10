@@ -1,13 +1,18 @@
-
 use {Lense, Dice, DiceMut};
 
-pub struct Aligned<B> {
-    state: B,
+pub struct Aligned<D> {
+    state: D,
     len: usize,
 }
 
-impl<'a, B> Aligned<B> where B: Dice<'a> {
-    pub fn new(b: B) -> Self {
+impl<'a, D> Aligned<D> where D: Dice<'a> {
+    #[cfg(not(feature = "automatic_padding"))]
+    pub fn new(b: D) -> D {
+        b
+    }
+
+    #[cfg(feature = "automatic_padding")]
+    pub fn new(b: D) -> Aligned<D> {
         Aligned { state: b, len: 0 }
     }
 
@@ -25,36 +30,40 @@ impl<'a, B> Aligned<B> where B: Dice<'a> {
 
             // Todo advance the pointer without slicing
             match offset {
-                1 => unsafe { self.state.dice::<[u8; 1]>(); },
-                2 => unsafe { self.state.dice::<[u8; 2]>(); },
-                3 => unsafe { self.state.dice::<[u8; 3]>(); },
-                4 => unsafe { self.state.dice::<[u8; 4]>(); },
-                5 => unsafe { self.state.dice::<[u8; 5]>(); },
-                6 => unsafe { self.state.dice::<[u8; 6]>(); },
-                7 => unsafe { self.state.dice::<[u8; 7]>(); },
+                1 => { self.dice::<[u8; 1]>(); }
+                2 => { self.dice::<[u8; 2]>(); }
+                3 => { self.dice::<[u8; 3]>(); }
+                4 => { self.dice::<[u8; 4]>(); }
+                5 => { self.dice::<[u8; 5]>(); }
+                6 => { self.dice::<[u8; 6]>(); }
+                7 => { self.dice::<[u8; 7]>(); }
                 _ => panic!("Unimplemented offset correction: {}", offset),
             }
         }
     }
+
+    fn waste(&self) -> usize {
+        0
+    }
 }
 
-impl<'a, B> DiceMut<'a> for Aligned<B> where B: DiceMut<'a> {
+impl<'a, D> DiceMut<'a> for Aligned<D> where D: DiceMut<'a> {
     #[inline]
-    unsafe fn dice_mut<L: Lense>(&mut self) -> &'a mut L {
+    fn dice_mut<L: Lense>(&mut self) -> &'a mut L {
         self.align_to(L::size());
         self.state.dice_mut()
     }
 }
 
-impl<'a, B> Dice<'a> for Aligned<B> where B: Dice<'a> {
+impl<'a, D> Dice<'a> for Aligned<D> where D: Dice<'a> {
     #[inline]
-    unsafe fn dice<L: Lense>(&mut self) -> &'a L {
+    fn dice<L: Lense>(&mut self) -> &'a L {
         self.align_to(L::size());
         self.state.dice()
     }
 
     #[inline]
     fn size(&self) -> usize {
-        self.state.size()
+        self.state.size() + self.waste()
     }
 }

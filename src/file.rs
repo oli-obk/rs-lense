@@ -1,10 +1,8 @@
-//#![cfg(test)]
-
 use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Read};
 use std::collections::HashMap;
 
-use {AlignedPool, Lense};
+use {SeekablePool, Lense};
 
 enum PoolPolicy {
     Strict, // Do not allocate more memory when the pool runs out of storage.
@@ -17,18 +15,18 @@ enum CacheEntry {
     Unlocked(usize), // An entry exists and is not in use
 }
 
-pub struct LenseFile<L: Lense> {
+pub struct LenseFile<'a, L: 'a + Lense> {
     file: File,
-    pool: AlignedPool<L>,
+    pool: SeekablePool<'a, L>,
     cache: HashMap<usize, CacheEntry>,
     policy: PoolPolicy,
 }
 
-impl<L> LenseFile<L> where L: Lense {
+impl<'a, L> LenseFile<'a, L> where L: Lense {
     pub fn from_file(file: File, cap: usize) -> Self {
         LenseFile {
             file: file,
-            pool: AlignedPool::with_capacity(cap),
+            pool: SeekablePool::with_capacity(cap),
             cache: HashMap::with_capacity(cap),
             policy: PoolPolicy::Strict,
         }
@@ -38,10 +36,6 @@ impl<L> LenseFile<L> where L: Lense {
         match self.policy {
             PoolPolicy::Strict => self.file.read(&mut *self.pool),
         }
-    }
-
-    pub fn pool(&mut self) -> &mut AlignedPool<L> {
-        &mut self.pool
     }
 
 // Lock when leasing lenses.
@@ -79,6 +73,20 @@ impl<L> LenseFile<L> where L: Lense {
 
 }
 
+impl<'a, L: Lense> ::std::ops::Deref for LenseFile<'a, L> {
+    type Target = SeekablePool<'a, L>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.pool
+    }
+}
+
+impl<'a, L: Lense> ::std::ops::DerefMut for LenseFile<'a, L> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.pool
+    }
+}
+
 #[cfg(test)]
 mod test{
     use std::fs::File;
@@ -104,9 +112,8 @@ mod test{
 
         assert_eq!(f.init().unwrap(), Alice::size() * 5);
 
-        for Alice { a, bc, dg, h } in f.pool().iter() {
-            let (b, c) = bc;
-            let [d, e, f, g] = dg;
+        for guard in f.iter() {
+            let Alice { a, bc: (b, c), dg: [d, e, f, g], h } = *guard;
             assert_eq!(*a, 0);
             assert_eq!(*b, 1);
             assert_eq!(*c, 0x0302);

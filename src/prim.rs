@@ -21,7 +21,7 @@ macro_rules! mk_lense_ty {
             type Ref = &'a $ty;
 
             #[inline]
-            unsafe fn slice<L: $crate::Dice<'a>>(buf: &mut L) -> Self::Ref {
+            fn slice<L: $crate::Dice<'a>>(buf: &mut L) -> Self::Ref {
                 buf.dice::<Self>()
             }
         }
@@ -30,12 +30,10 @@ macro_rules! mk_lense_ty {
             type Mut = &'a mut $ty;
 
             #[inline]
-            unsafe fn slice_mut<L: $crate::DiceMut<'a>>(buf: &mut L) -> Self::Mut {
+            fn slice_mut<L: $crate::DiceMut<'a>>(buf: &mut L) -> Self::Mut {
                 buf.dice_mut::<Self>()
             }
         }
-
-//      impl<'a> $crate::LensePrim<'a> for $ty { }
     )+};
 
     (()) => { };
@@ -52,7 +50,7 @@ macro_rules! mk_lense_ty {
 
             #[allow(unused_variables)]
             #[inline]
-            unsafe fn slice<BB: $crate::Dice<'a>>(buf: &mut BB) -> Self::Ref {
+            fn slice<BB: $crate::Dice<'a>>(buf: &mut BB) -> Self::Ref {
                 ($( <$ty>::slice(buf), )*)
             }
         }
@@ -62,7 +60,7 @@ macro_rules! mk_lense_ty {
 
             #[allow(unused_variables)]
             #[inline]
-            unsafe fn slice_mut<BB: $crate::DiceMut<'a>>(buf: &mut BB) -> Self::Mut {
+            fn slice_mut<BB: $crate::DiceMut<'a>>(buf: &mut BB) -> Self::Mut {
                 ($( <$ty>::slice_mut(buf), )*)
             }
         }
@@ -83,7 +81,7 @@ macro_rules! mk_lense_ty {
 
             #[allow(unused_variables)]
             #[inline]
-            unsafe fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
+            fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
                 [$(mk_lense_ty!{ @void ($m) L::slice(buf) }),*]
             }
         }
@@ -93,7 +91,7 @@ macro_rules! mk_lense_ty {
 
             #[allow(unused_variables)]
             #[inline]
-            unsafe fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
+            fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
                 [$(mk_lense_ty!{ @void ($m) L::slice_mut(buf) }),*]
             }
         }
@@ -101,25 +99,21 @@ macro_rules! mk_lense_ty {
     };
 
     ({} @struct public ref $ident:ident $($field:ident: $ty:ty),*) => {
-        #[allow(dead_code)]
         pub struct $ident<'a> {
             $($field: <$ty as $crate::SliceRef<'a>>::Ref),*
         }
     };
     ({} @struct public mut $ident:ident $($field:ident: $ty:ty),*) => {
-        #[allow(dead_code)]
         pub struct $ident<'a> {
             $($field: <$ty as $crate::SliceMut<'a>>::Mut),*
         }
     };
     ({} @struct private ref $ident:ident $($field:ident: $ty:ty),*) => {
-        #[allow(dead_code)]
         struct $ident<'a> {
             $($field: <$ty as $crate::SliceRef<'a>>::Ref),*
         }
     };
     ({} @struct private mut $ident:ident $($field:ident: $ty:ty),*) => {
-        #[allow(dead_code)]
         struct $ident<'a> {
             $($field: <$ty as $crate::SliceMut<'a>>::Mut),*
         }
@@ -137,7 +131,7 @@ macro_rules! mk_lense_ty {
             type Ref = $ident<'a>;
 
             #[inline]
-            unsafe fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
+            fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
                 $ident { $($field: <$ty>::slice(buf)),* }
             }
         }
@@ -147,7 +141,7 @@ macro_rules! mk_lense_ty {
             type Mut = $ident<'a>;
 
             #[inline]
-            unsafe fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
+            fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
                 $ident { $($field: <$ty>::slice_mut(buf)),* }
             }
         }
@@ -215,7 +209,7 @@ macro_rules! mk_lense_enum {
 
             #[allow(non_snake_case)]
             #[inline]
-            unsafe fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
+            fn slice<B: $crate::Dice<'a>>(buf: &mut B) -> Self::Ref {
                 let tag = <u8>::slice(buf);
                 let ($($variant,)*) = count_tuple!(() $( $variant )*);
                 match tag {
@@ -231,7 +225,7 @@ macro_rules! mk_lense_enum {
 
             #[allow(non_snake_case)]
             #[inline]
-            unsafe fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
+            fn slice_mut<B: $crate::DiceMut<'a>>(buf: &mut B) -> Self::Mut {
                 let tag = <u8>::slice(buf);
                 let ($($variant,)*) = count_tuple!(() $( $variant )*);
                 match tag {

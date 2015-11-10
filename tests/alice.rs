@@ -1,56 +1,47 @@
 #[macro_use] extern crate lense;
 
-use lense::*;
+use lense::{Lense, SeekablePool};
 
-mk_lense_ty!{struct AliceRefx ref
-    a: u8,        // 1
-    // 1 padding
-    b: (u8, u16), // 3
-    d: u32,       // 4
-    e: u64,       // 8
-}
-
+// Correct ordering can lead to favourable padding dynamics (in this case, no padding required)
 mk_lense_ty!{pub struct AliceRef ref
-    e: u64,       // 8
-    d: u32,       // 4
-    b: (u16, u8), // 3
-    a: u8,        // 1
+    e:  u64,       // 8
+    d:  u32,       // 4
+    bc: (u16, u8), // 3
+    a:  u8,        // 1
+} // 8 + 4 + 3 + 1 = 16
+
+#[test]
+fn tuple_alice_iter() {
+    type FakeAlice = (u8, (u8, u16), u32, u64);
+    let mut pool = SeekablePool::<FakeAlice>::with_capacity(1);
+    for guard in pool.iter() {
+        let (a, (b, c), d, e) = *guard;
+        assert_eq!(*a, 0u8);
+        assert_eq!(*b, 0u8);
+        assert_eq!(*c, 0u16);
+        assert_eq!(*d, 0u32);
+        assert_eq!(*e, 0u64);
+    }
 }
 
 #[test]
-fn fake_alice_pool() {
-    type FakeAlice = (u8, u8, u16, u32, u64);
-    let ref mut pool = &mut *AlignedPool::<FakeAlice>::with_capacity(1);
-    let (a, b, c, d, e) = unsafe { FakeAlice::slice(pool) };
-    assert_eq!(*a, 0u8);
-    assert_eq!(*b, 0u8);
-    assert_eq!(*c, 0u16);
-    assert_eq!(*d, 0u32);
-    assert_eq!(*e, 0u64);
-}
+fn alice_iter() {
+    let mut pool = SeekablePool::<AliceRef>::with_capacity(4);
+    let it = pool.iter();
 
-#[test]
-fn alice_pool() {
-    let ref mut pool = &mut *AlignedPool::<AliceRef>::with_capacity(1);
-    let AliceRef { a, b, d, e } = unsafe { AliceRef::slice(pool) };
-    let (b, c) = b;
-    assert_eq!(*a, 0u8);
-    assert_eq!(*b, 0u16);
-    assert_eq!(*c, 0u8);
-    assert_eq!(*d, 0u32);
-    assert_eq!(*e, 0u64);
-}
+    assert_eq!(it.len(), 4);
 
-#[test]
-fn alice_immutable_iter() {
-    let ref mut pool = AlignedPool::<AliceRef>::with_capacity(4);
-    let it = Iter::from_aligned_pool(pool);
-    for AliceRef { a, b, d, e } in it {
-        let (b, c) = b;
+    for guard in it {
+        let AliceRef { a, bc: (b, c), d, e } = *guard;
         assert_eq!(*a, 0u8);
         assert_eq!(*b, 0u16);
         assert_eq!(*c, 0u8);
         assert_eq!(*d, 0u32);
         assert_eq!(*e, 0u64);
     }
+}
+
+#[test]
+fn size_alice_16() {
+    assert_eq!(AliceRef::size(), 16);
 }

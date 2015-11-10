@@ -17,4 +17,4 @@ debug-assertions = false
 [features]
 
 strict_alignment = []
-file_dump = []
+automatic_padding = []
